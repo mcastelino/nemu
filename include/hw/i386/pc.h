@@ -213,6 +213,7 @@ void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name);
 
 
 /* piix_pci.c */
+#ifdef CONFIG_PIIX
 struct PCII440FXState;
 typedef struct PCII440FXState PCII440FXState;
 
@@ -240,7 +241,7 @@ PCIBus *find_i440fx(void);
 /* piix4.c */
 extern PCIDevice *piix4_dev;
 int piix4_init(PCIBus *bus, ISABus **isa_bus, int devfn);
-
+#endif
 /* pc_sysfw.c */
 void pc_system_firmware_init(MemoryRegion *rom_memory,
                              bool isapc_ram_fw);

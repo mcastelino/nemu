@@ -46,8 +46,10 @@
 #include "sysemu/numa.h"
 
 /* Supported chipsets: */
+#ifdef CONFIG_PIIX
 #include "hw/acpi/piix4.h"
 #include "hw/acpi/pcihp.h"
+#endif
 #include "hw/i386/ich9.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci-host/q35.h"
@@ -97,7 +99,9 @@ typedef struct AcpiPmInfo {
 } AcpiPmInfo;
 
 typedef struct AcpiMiscInfo {
+#ifdef CONFIG_PIIX
     bool is_piix4;
+#endif
     TPMVersion tpm_version;
     const unsigned char *dsdt_code;
     unsigned dsdt_size;
@@ -153,15 +157,20 @@ static void init_common_fadt_data(Object *o, AcpiFadtData *data)
 
 static void acpi_get_pm_info(AcpiPmInfo *pm)
 {
-    Object *piix = piix4_pm_find();
     Object *lpc = ich9_lpc_find();
+#ifdef CONFIG_PIIX
+    Object *piix = piix4_pm_find();
     Object *obj = piix ? piix : lpc;
+#else
+    Object *obj = lpc;
+#endif
     QObject *o;
     pm->cpu_hp_io_base = 0;
     pm->pcihp_io_base = 0;
     pm->pcihp_io_len = 0;
 
     init_common_fadt_data(obj, &pm->fadt);
+#ifdef CONFIG_PIIX
     if (piix) {
         /* w2k requires FADT(rev1) or it won't boot, keep PC compatible */
         pm->fadt.rev = 1;
@@ -171,6 +180,7 @@ static void acpi_get_pm_info(AcpiPmInfo *pm)
         pm->pcihp_io_len =
             object_property_get_uint(obj, ACPI_PCIHP_IO_LEN_PROP, NULL);
     }
+#endif
     if (lpc) {
         struct AcpiGenericAddress r = { .space_id = AML_AS_SYSTEM_IO,
             .bit_width = 8, .address = ICH9_RST_CNT_IOPORT };
@@ -183,8 +193,9 @@ static void acpi_get_pm_info(AcpiPmInfo *pm)
 
     /* The above need not be conditional on machine type because the reset port
      * happens to be the same on PIIX (pc) and ICH9 (q35). */
+#ifdef CONFIG_PIIX
     QEMU_BUILD_BUG_ON(ICH9_RST_CNT_IOPORT != RCR_IOPORT);
-
+#endif
     /* Fill in optional s3/s4 related properties */
     o = object_property_get_qobject(obj, ACPI_PM_PROP_S3_DISABLED, NULL);
     if (o) {
@@ -215,6 +226,7 @@ static void acpi_get_pm_info(AcpiPmInfo *pm)
 
 static void acpi_get_misc_info(AcpiMiscInfo *info)
 {
+#ifdef CONFIG_PIIX
     Object *piix = piix4_pm_find();
     Object *lpc = ich9_lpc_find();
     assert(!!piix != !!lpc);
@@ -225,7 +237,7 @@ static void acpi_get_misc_info(AcpiMiscInfo *info)
     if (lpc) {
         info->is_piix4 = false;
     }
-
+#endif
     info->tpm_version = tpm_get_version(tpm_find());
     info->applesmc_io_base = applesmc_port();
 }
@@ -408,6 +420,7 @@ build_madt(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms)
                  table_data->len - madt_start, 1, NULL, NULL);
 }
 
+#ifdef CONFIG_PIIX
 static void build_append_pcihp_notify_entry(Aml *method, int slot)
 {
     Aml *if_ctx;
@@ -417,15 +430,21 @@ static void build_append_pcihp_notify_entry(Aml *method, int slot)
     aml_append(if_ctx, aml_notify(aml_name("S%.02X", devfn), aml_arg(1)));
     aml_append(method, if_ctx);
 }
+#endif
 
 static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
                                          bool pcihp_bridge_en)
 {
+#ifdef CONFIG_PIIX
     Aml *dev, *notify_method = NULL, *method;
     QObject *bsel;
+#else
+    Aml *dev, *method;
+#endif
     PCIBus *sec;
     int i;
 
+#ifdef CONFIG_PIIX
     bsel = object_property_get_qobject(OBJECT(bus), ACPI_PCIHP_PROP_BSEL, NULL);
     if (bsel) {
         uint64_t bsel_val = qnum_get_uint(qobject_to(QNum, bsel));
@@ -433,16 +452,19 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
         aml_append(parent_scope, aml_name_decl("BSEL", aml_int(bsel_val)));
         notify_method = aml_method("DVNT", 2, AML_NOTSERIALIZED);
     }
-
+#endif
     for (i = 0; i < ARRAY_SIZE(bus->devices); i += PCI_FUNC_MAX) {
+#ifdef CONFIG_PIIX
         DeviceClass *dc;
+        bool hotplug_enabled_dev;
+#endif
         PCIDeviceClass *pc;
         PCIDevice *pdev = bus->devices[i];
         int slot = PCI_SLOT(i);
-        bool hotplug_enabled_dev;
         bool bridge_in_acpi;
 
         if (!pdev) {
+#ifdef CONFIG_PIIX
             if (bsel) { /* add hotplug slots for non present devices */
                 dev = aml_device("S%.02X", PCI_DEVFN(slot, 0));
                 aml_append(dev, aml_name_decl("_SUN", aml_int(slot)));
@@ -456,12 +478,14 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
 
                 build_append_pcihp_notify_entry(notify_method, slot);
             }
+#endif
             continue;
         }
 
         pc = PCI_DEVICE_GET_CLASS(pdev);
+#ifdef CONFIG_PIIX
         dc = DEVICE_GET_CLASS(pdev);
-
+#endif
         /* When hotplug for bridges is enabled, bridges are
          * described in ACPI separately (see build_pci_bus_end).
          * In this case they aren't themselves hot-pluggable.
@@ -469,9 +493,9 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
          */
         bridge_in_acpi = pc->is_bridge && pcihp_bridge_en &&
             !DEVICE(pdev)->hotplugged;
-
+#ifdef CONFIG_PIIX
         hotplug_enabled_dev = bsel && dc->hotpluggable && !bridge_in_acpi;
-
+#endif
         if (pc->class_id == PCI_CLASS_BRIDGE_ISA) {
             continue;
         }
@@ -501,6 +525,7 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
             method = aml_method("_S3D", 0, AML_NOTSERIALIZED);
             aml_append(method, aml_return(aml_int(s3d)));
             aml_append(dev, method);
+#ifdef CONFIG_PIIX
         } else if (hotplug_enabled_dev) {
             /* add _SUN/_EJ0 to make slot hotpluggable  */
             aml_append(dev, aml_name_decl("_SUN", aml_int(slot)));
@@ -514,6 +539,7 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
             if (bsel) {
                 build_append_pcihp_notify_entry(notify_method, slot);
             }
+#endif
         } else if (bridge_in_acpi) {
             /*
              * device is coldplugged bridge,
@@ -526,17 +552,18 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
         /* slot descriptor has been composed, add it into parent context */
         aml_append(parent_scope, dev);
     }
-
+#ifdef CONFIG_PIIX
     if (bsel) {
         aml_append(parent_scope, notify_method);
     }
-
+#endif
     /* Append PCNT method to notify about events on local and child buses.
      * Add unconditionally for root since DSDT expects it.
      */
     method = aml_method("PCNT", 0, AML_NOTSERIALIZED);
 
     /* If bus supports hotplug select it and notify about local events */
+#ifdef CONFIG_PIIX
     if (bsel) {
         uint64_t bsel_val = qnum_get_uint(qobject_to(QNum, bsel));
 
@@ -548,7 +575,7 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
             aml_call2("DVNT", aml_name("PCID"), aml_int(3)/* Eject Request */)
         );
     }
-
+#endif
     /* Notify about child bus events in any case */
     if (pcihp_bridge_en) {
         QLIST_FOREACH(sec, &bus->child, sibling) {
@@ -562,7 +589,9 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
         }
     }
     aml_append(parent_scope, method);
+#ifdef CONFIG_PIIX
     qobject_decref(bsel);
+#endif
 }
 
 /**
@@ -1220,7 +1249,9 @@ static Aml *build_gsi_link_dev(const char *name, uint8_t uid, uint8_t gsi)
 /* _CRS method - get current settings */
 static Aml *build_iqcr_method(bool is_piix4)
 {
+#ifdef CONFIG_PIIX
     Aml *if_ctx;
+#endif
     uint32_t irqs;
     Aml *method = aml_method("IQCR", 1, AML_SERIALIZED);
     Aml *crs = aml_resource_template();
@@ -1232,7 +1263,7 @@ static Aml *build_iqcr_method(bool is_piix4)
 
     aml_append(method,
         aml_create_dword_field(aml_name("PRR0"), aml_int(5), "PRRI"));
-
+#ifdef CONFIG_PIIX
     if (is_piix4) {
         if_ctx = aml_if(aml_lless(aml_arg(0), aml_int(0x80)));
         aml_append(if_ctx, aml_store(aml_arg(0), aml_name("PRRI")));
@@ -1242,6 +1273,12 @@ static Aml *build_iqcr_method(bool is_piix4)
             aml_store(aml_and(aml_arg(0), aml_int(0xF), NULL),
                       aml_name("PRRI")));
     }
+#else
+    aml_append(method,
+        aml_store(aml_and(aml_arg(0), aml_int(0xF), NULL),
+                  aml_name("PRRI")));
+#endif
+
 
     aml_append(method, aml_return(aml_name("PRR0")));
     return method;
@@ -1259,7 +1296,7 @@ static Aml *build_irq_status_method(void)
     aml_append(method, aml_return(aml_int(0x0B)));
     return method;
 }
-
+#ifdef CONFIG_PIIX
 static void build_piix4_pci0_int(Aml *table)
 {
     Aml *dev;
@@ -1322,6 +1359,7 @@ static void build_piix4_pci0_int(Aml *table)
 
     aml_append(table, sb_scope);
 }
+#endif
 
 static void append_q35_prt_entry(Aml *ctx, uint32_t nr, const char *name)
 {
@@ -1493,6 +1531,7 @@ static void build_q35_isa_bridge(Aml *table)
     aml_append(table, scope);
 }
 
+#ifdef CONFIG_PIIX
 static void build_piix4_pm(Aml *table)
 {
     Aml *dev;
@@ -1579,6 +1618,7 @@ static void build_piix4_pci_hotplug(Aml *table)
 
     aml_append(table, scope);
 }
+#endif
 
 static Aml *build_q35_osc_method(void)
 {
@@ -1649,6 +1689,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
     acpi_data_push(dsdt->buf, sizeof(AcpiTableHeader));
 
     build_dbg_aml(dsdt);
+#ifdef CONFIG_PIIX
     if (misc->is_piix4) {
         sb_scope = aml_scope("_SB");
         dev = aml_device("PCI0");
@@ -1664,6 +1705,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         build_piix4_pci_hotplug(dsdt);
         build_piix4_pci0_int(dsdt);
     } else {
+#endif
         sb_scope = aml_scope("_SB");
         dev = aml_device("PCI0");
         aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0A08")));
@@ -1677,8 +1719,9 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         build_q35_isa_bridge(dsdt);
         build_isa_devices_aml(dsdt);
         build_q35_pci0_int(dsdt);
+#ifdef CONFIG_PIIX
     }
-
+#endif
     if (pcmc->legacy_cpu_hotplug) {
         build_legacy_cpu_hotplug_aml(dsdt, machine, pm->cpu_hp_io_base);
     } else {
@@ -1693,7 +1736,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
     scope =  aml_scope("_GPE");
     {
         aml_append(scope, aml_name_decl("_HID", aml_string("ACPI0006")));
-
+#ifdef CONFIG_PIIX
         if (misc->is_piix4) {
             method = aml_method("_E01", 0, AML_NOTSERIALIZED);
             aml_append(method,
@@ -1702,7 +1745,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
             aml_append(method, aml_release(aml_name("\\_SB.PCI0.BLCK")));
             aml_append(scope, method);
         }
-
+#endif
         if (pcms->acpi_nvdimm_state.is_enabled) {
             method = aml_method("_E04", 0, AML_NOTSERIALIZED);
             aml_append(method, aml_notify(aml_name("\\_SB.NVDR"),
