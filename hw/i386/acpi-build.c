@@ -42,7 +42,9 @@
 #include "hw/acpi/tpm.h"
 #include "hw/acpi/vmgenid.h"
 #include "sysemu/tpm_backend.h"
+#if 0
 #include "hw/timer/mc146818rtc_regs.h"
+#endif
 #include "sysemu/numa.h"
 
 /* Supported chipsets: */
@@ -134,7 +136,7 @@ static void init_common_fadt_data(Object *o, AcpiFadtData *data)
              */
             ((max_cpus > 8) ? (1 << ACPI_FADT_F_FORCE_APIC_CLUSTER_MODEL) : 0),
         .int_model = 1 /* Multiple APIC */,
-        .rtc_century = RTC_CENTURY,
+        //.rtc_century = RTC_CENTURY,
         .plvl2_lat = 0xfff /* C2 state not supported */,
         .plvl3_lat = 0xfff /* C3 state not supported */,
         .smi_cmd = ACPI_PORT_SMI_CMD,
@@ -991,6 +993,8 @@ static Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set)
     return crs;
 }
 
+#if 0
+
 static Aml *build_rtc_device_aml(void)
 {
     Aml *dev;
@@ -1048,6 +1052,8 @@ static Aml *build_mouse_device_aml(void)
 
     return dev;
 }
+
+#endif
 
 static Aml *build_lpt_device_aml(void)
 {
@@ -1134,9 +1140,11 @@ static void build_isa_devices_aml(Aml *table)
 {
     Aml *scope = aml_scope("_SB.PCI0.ISA");
 
+#if 0
     aml_append(scope, build_rtc_device_aml());
     aml_append(scope, build_kbd_device_aml());
     aml_append(scope, build_mouse_device_aml());
+#endif
     aml_append(scope, build_lpt_device_aml());
     aml_append(scope, build_com_device_aml(1));
     aml_append(scope, build_com_device_aml(2));

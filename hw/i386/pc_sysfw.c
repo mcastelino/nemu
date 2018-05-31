@@ -34,15 +34,19 @@
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "sysemu/sysemu.h"
+#if 0
 #include "hw/block/flash.h"
+#endif
 #include "sysemu/kvm.h"
 
 #define BIOS_FILENAME "bios.bin"
 
+#if 0
 typedef struct PcSysFwDevice {
     SysBusDevice busdev;
     uint8_t isapc_ram_fw;
 } PcSysFwDevice;
+
 
 static void pc_isa_bios_init(MemoryRegion *rom_memory,
                              MemoryRegion *flash_mem,
@@ -74,6 +78,7 @@ static void pc_isa_bios_init(MemoryRegion *rom_memory,
 
     memory_region_set_readonly(isa_bios, true);
 }
+
 
 #define FLASH_MAP_UNIT_MAX 2
 
@@ -186,6 +191,8 @@ static void pc_system_flash_init(MemoryRegion *rom_memory)
     }
 }
 
+#endif
+
 static void old_pc_system_rom_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
 {
     char *filename;
@@ -244,6 +251,8 @@ static void old_pc_system_rom_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
 
 void pc_system_firmware_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
 {
+        old_pc_system_rom_init(rom_memory, isapc_ram_fw);
+#if 0
     DriveInfo *pflash_drv;
 
     pflash_drv = drive_get(IF_PFLASH, 0, 0);
@@ -262,4 +271,5 @@ void pc_system_firmware_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
     }
 
     pc_system_flash_init(rom_memory);
+#endif
 }

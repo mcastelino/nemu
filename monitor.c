@@ -542,7 +542,7 @@ static void monitor_qmp_bh_responder(void *opaque)
 
 static MonitorQAPIEventConf monitor_qapi_event_conf[QAPI_EVENT__MAX] = {
     /* Limit guest-triggerable events to 1 per second */
-    [QAPI_EVENT_RTC_CHANGE]        = { 1000 * SCALE_MS },
+    //[QAPI_EVENT_RTC_CHANGE]        = { 1000 * SCALE_MS },
     [QAPI_EVENT_BALLOON_CHANGE]    = { 1000 * SCALE_MS },
     [QAPI_EVENT_QUORUM_REPORT_BAD] = { 1000 * SCALE_MS },
     [QAPI_EVENT_QUORUM_FAILURE]    = { 1000 * SCALE_MS },
@@ -4477,10 +4477,13 @@ QemuOptsList qemu_mon_opts = {
 };
 
 #ifndef TARGET_I386
+
+#if 0
 void qmp_rtc_reset_reinjection(Error **errp)
 {
     error_setg(errp, QERR_FEATURE_DISABLED, "rtc-reset-reinjection");
 }
+#endif
 
 SevInfo *qmp_query_sev(Error **errp)
 {

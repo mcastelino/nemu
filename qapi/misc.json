@@ -2851,46 +2851,6 @@
      'data': { 'info': 'ACPIOSTInfo' } }
 
 ##
-# @rtc-reset-reinjection:
-#
-# This command will reset the RTC interrupt reinjection backlog.
-# Can be used if another mechanism to synchronize guest time
-# is in effect, for example QEMU guest agent's guest-set-time
-# command.
-#
-# Since: 2.1
-#
-# Example:
-#
-# -> { "execute": "rtc-reset-reinjection" }
-# <- { "return": {} }
-#
-##
-{ 'command': 'rtc-reset-reinjection' }
-
-##
-# @RTC_CHANGE:
-#
-# Emitted when the guest changes the RTC time.
-#
-# @offset: offset between base RTC clock (as specified by -rtc base), and
-#          new RTC clock value
-#
-# Note: This event is rate-limited.
-#
-# Since: 0.13.0
-#
-# Example:
-#
-# <-   { "event": "RTC_CHANGE",
-#        "data": { "offset": 78 },
-#        "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
-#
-##
-{ 'event': 'RTC_CHANGE',
-  'data': { 'offset': 'int' } }
-
-##
 # @ReplayMode:
 #
 # Mode of the replay subsystem.

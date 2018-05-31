@@ -5,9 +5,3 @@ common-obj-$(CONFIG_I8254) += i8254_common.o i8254.o
 ifeq ($(CONFIG_ISA_BUS),y)
 endif
 common-obj-$(CONFIG_PL031) += pl031.o
-
-
-obj-$(CONFIG_MC146818RTC) += mc146818rtc.o
-
-
-
