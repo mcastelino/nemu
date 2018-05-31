@@ -33,7 +33,9 @@
 #include "hw/loader.h"
 #include "sysemu/arch_init.h"
 #include "hw/boards.h"
+#if 0
 #include "hw/timer/mc146818rtc.h"
+#endif
 #include "sysemu/kvm.h"
 #include "kvm_i386.h"
 #include "hw/kvm/clock.h"
@@ -58,7 +60,9 @@ static void pc_q35_init(MachineState *machine)
     PCIBus *host_bus;
     PCIDevice *lpc;
     DeviceState *lpc_dev;
+#if 0
     ISADevice *rtc_state;
+#endif
     MemoryRegion *system_io = get_system_io();
     MemoryRegion *pci_memory;
     MemoryRegion *rom_memory;
@@ -198,21 +202,26 @@ static void pc_q35_init(MachineState *machine)
         ioapic_init_gsi(gsi_state, "q35");
     }
 
+#if 0
     pc_register_ferr_irq(pcms->gsi[13]);
 
     /* init basic PC hardware */
     pc_basic_device_init(isa_bus, pcms->gsi, &rtc_state, !mc->no_floppy,
                          pcms->pit);
+#endif
 
     /* connect pm stuff to lpc */
     ich9_lpc_pm_init(lpc, false);
 
+#if 0
     pc_cmos_init(pcms, rtc_state);
+#endif
 
     if (pcms->acpi_nvdimm_state.is_enabled) {
         nvdimm_init_acpi_state(&pcms->acpi_nvdimm_state, system_io,
                                pcms->fw_cfg, OBJECT(pcms));
     }
+
 }
 
 #define DEFINE_Q35_MACHINE(suffix, name, compatfn, optionfn) \

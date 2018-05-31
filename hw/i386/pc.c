@@ -35,7 +35,9 @@
 #include "hw/smbios/smbios.h"
 #include "hw/loader.h"
 #include "elf.h"
+#if 0
 #include "hw/timer/mc146818rtc.h"
+#endif
 #include "hw/timer/i8254.h"
 #include "hw/input/i8042.h"
 #include "hw/pci/msi.h"
@@ -97,6 +99,8 @@ static struct e820_table e820_reserve;
 static struct e820_entry *e820_table;
 static unsigned e820_entries;
 
+#if 0
+
 static void ioport80_write(void *opaque, hwaddr addr, uint64_t data,
                            unsigned size)
 {
@@ -144,6 +148,7 @@ static int boot_device2nibble(char boot_device)
     }
     return 0;
 }
+
 
 static void set_boot_dev(ISADevice *s, const char *boot_device, Error **errp)
 {
@@ -228,6 +233,8 @@ void pc_cmos_init(PCMachineState *pcms,
     val |= 0x04; /* PS/2 mouse installed */
     rtc_set_memory(s, REG_EQUIPMENT_BYTE, val);
 }
+
+#endif
 
 int e820_add_entry(uint64_t address, uint64_t length, uint32_t type)
 {
@@ -736,6 +743,7 @@ static void pc_build_feature_control_file(PCMachineState *pcms)
     fw_cfg_add_file(pcms->fw_cfg, "etc/msr_feature_control", val, sizeof(*val));
 }
 
+#if 0
 static void rtc_set_cpus_count(ISADevice *rtc, uint16_t cpus_count)
 {
     if (cpus_count > 0xff) {
@@ -748,6 +756,7 @@ static void rtc_set_cpus_count(ISADevice *rtc, uint16_t cpus_count)
         rtc_set_memory(rtc, 0x5f, cpus_count - 1);
     }
 }
+#endif
 
 static
 void pc_machine_done(Notifier *notifier, void *data)
@@ -757,7 +766,9 @@ void pc_machine_done(Notifier *notifier, void *data)
     PCIBus *bus = pcms->bus;
 
     /* set the number of CPUs */
+#if 0
     rtc_set_cpus_count(pcms->rtc, pcms->boot_cpus);
+#endif
 
     if (bus) {
         int extra_hosts = 0;
@@ -978,6 +989,8 @@ uint64_t pc_pci_hole64_start(void)
     return ROUND_UP(hole64_start, 1ULL << 30);
 }
 
+#if 0
+
 static const MemoryRegionOps ioport80_io_ops = {
     .write = ioport80_write,
     .read = ioport80_read,
@@ -1006,6 +1019,7 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
     int pit_isa_irq = 0;
     qemu_irq pit_alt_irq = NULL;
     qemu_irq rtc_irq = NULL;
+
     MemoryRegion *ioport80_io = g_new(MemoryRegion, 1);
     MemoryRegion *ioportF0_io = g_new(MemoryRegion, 1);
 
@@ -1027,6 +1041,7 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
         }
     }
 }
+#endif 
 
 void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name)
 {
@@ -1207,9 +1222,11 @@ static void pc_cpu_plug(HotplugHandler *hotplug_dev,
 
     /* increment the number of CPUs */
     pcms->boot_cpus++;
+#if 0
     if (pcms->rtc) {
         rtc_set_cpus_count(pcms->rtc, pcms->boot_cpus);
     }
+#endif
     if (pcms->fw_cfg) {
         fw_cfg_modify_i16(pcms->fw_cfg, FW_CFG_NB_CPUS, pcms->boot_cpus);
     }
@@ -1275,7 +1292,9 @@ static void pc_cpu_unplug_cb(HotplugHandler *hotplug_dev,
     /* decrement the number of CPUs */
     pcms->boot_cpus--;
     /* Update the number of CPUs in CMOS */
+#if 0
     rtc_set_cpus_count(pcms->rtc, pcms->boot_cpus);
+#endif
     fw_cfg_modify_i16(pcms->fw_cfg, FW_CFG_NB_CPUS, pcms->boot_cpus);
  out:
     error_propagate(errp, local_err);
@@ -1545,8 +1564,8 @@ static void pc_machine_initfn(Object *obj)
     pcms->acpi_nvdimm_state.is_enabled = false;
     /* acpi build is enabled by default if machine supports it */
     pcms->acpi_build_enabled = PC_MACHINE_GET_CLASS(pcms)->has_acpi_build;
-    pcms->smbus = true;
-    pcms->pit = true;
+    pcms->smbus = false;
+    pcms->pit = false;
 }
 
 static void pc_machine_reset(void)
