@@ -97,6 +97,8 @@ static struct e820_table e820_reserve;
 static struct e820_entry *e820_table;
 static unsigned e820_entries;
 
+//port 80
+#if 0
 static void ioport80_write(void *opaque, hwaddr addr, uint64_t data,
                            unsigned size)
 {
@@ -107,6 +109,8 @@ static uint64_t ioport80_read(void *opaque, hwaddr addr, unsigned size)
     return 0xffffffffffffffffULL;
 }
 
+#endif
+
 /* MSDOS compatibility mode FPU exception support */
 static qemu_irq ferr_irq;
 
@@ -115,6 +119,7 @@ void pc_register_ferr_irq(qemu_irq irq)
     ferr_irq = irq;
 }
 
+#if 0
 static void ioportF0_write(void *opaque, hwaddr addr, uint64_t data,
                            unsigned size)
 {
@@ -125,6 +130,7 @@ static uint64_t ioportF0_read(void *opaque, hwaddr addr, unsigned size)
 {
     return 0xffffffffffffffffULL;
 }
+#endif
 
 /* PC cmos mappings */
 #define REG_EQUIPMENT_BYTE          0x14
@@ -978,6 +984,8 @@ uint64_t pc_pci_hole64_start(void)
     return ROUND_UP(hole64_start, 1ULL << 30);
 }
 
+//port 80
+#if 0
 static const MemoryRegionOps ioport80_io_ops = {
     .write = ioport80_write,
     .read = ioport80_read,
@@ -987,7 +995,9 @@ static const MemoryRegionOps ioport80_io_ops = {
         .max_access_size = 1,
     },
 };
+#endif
 
+#if 0
 static const MemoryRegionOps ioportF0_io_ops = {
     .write = ioportF0_write,
     .read = ioportF0_read,
@@ -997,6 +1007,7 @@ static const MemoryRegionOps ioportF0_io_ops = {
         .max_access_size = 1,
     },
 };
+#endif
 
 void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
                           ISADevice **rtc_state,
@@ -1006,14 +1017,23 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
     int pit_isa_irq = 0;
     qemu_irq pit_alt_irq = NULL;
     qemu_irq rtc_irq = NULL;
+#if 0
     MemoryRegion *ioport80_io = g_new(MemoryRegion, 1);
-    MemoryRegion *ioportF0_io = g_new(MemoryRegion, 1);
+#endif
 
+#if 0
+    MemoryRegion *ioportF0_io = g_new(MemoryRegion, 1);
+#endif 
+
+#if 0
     memory_region_init_io(ioport80_io, NULL, &ioport80_io_ops, NULL, "ioport80", 1);
     memory_region_add_subregion(isa_bus->address_space_io, 0x80, ioport80_io);
+#endif
 
+#if 0
     memory_region_init_io(ioportF0_io, NULL, &ioportF0_io_ops, NULL, "ioportF0", 1);
     memory_region_add_subregion(isa_bus->address_space_io, 0xf0, ioportF0_io);
+#endif
 
     *rtc_state = mc146818_rtc_init(isa_bus, 2000, rtc_irq);
 
@@ -1545,8 +1565,8 @@ static void pc_machine_initfn(Object *obj)
     pcms->acpi_nvdimm_state.is_enabled = false;
     /* acpi build is enabled by default if machine supports it */
     pcms->acpi_build_enabled = PC_MACHINE_GET_CLASS(pcms)->has_acpi_build;
-    pcms->smbus = true;
-    pcms->pit = true;
+    pcms->smbus = false;
+    pcms->pit = false;
 }
 
 static void pc_machine_reset(void)
