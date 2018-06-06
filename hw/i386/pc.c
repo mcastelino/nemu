@@ -136,6 +136,7 @@ static uint64_t ioportF0_read(void *opaque, hwaddr addr, unsigned size)
 #define REG_EQUIPMENT_BYTE          0x14
 
 
+#if 0
 /* convert boot_device letter to something recognizable by the bios */
 static int boot_device2nibble(char boot_device)
 {
@@ -150,7 +151,9 @@ static int boot_device2nibble(char boot_device)
     }
     return 0;
 }
+#endif
 
+#if 0
 static void set_boot_dev(ISADevice *s, const char *boot_device, Error **errp)
 {
 #define PC_MAX_BOOT_DEVICES 3
@@ -178,6 +181,7 @@ static void pc_boot_set(void *opaque, const char *boot_device, Error **errp)
 {
     set_boot_dev(opaque, boot_device, errp);
 }
+#endif
 
 void pc_cmos_init(PCMachineState *pcms,
                   ISADevice *s)
@@ -227,7 +231,9 @@ void pc_cmos_init(PCMachineState *pcms,
     object_property_set_link(OBJECT(pcms), OBJECT(s),
                              "rtc_state", &error_abort);
 
+#if 0
     set_boot_dev(s, MACHINE(pcms)->boot_order, &error_fatal);
+#endif
 
 #if 0
     val = 0;
@@ -744,6 +750,7 @@ static void pc_build_feature_control_file(PCMachineState *pcms)
     fw_cfg_add_file(pcms->fw_cfg, "etc/msr_feature_control", val, sizeof(*val));
 }
 
+#if 0
 static void rtc_set_cpus_count(ISADevice *rtc, uint16_t cpus_count)
 {
     if (cpus_count > 0xff) {
@@ -756,6 +763,7 @@ static void rtc_set_cpus_count(ISADevice *rtc, uint16_t cpus_count)
         rtc_set_memory(rtc, 0x5f, cpus_count - 1);
     }
 }
+#endif
 
 static
 void pc_machine_done(Notifier *notifier, void *data)
@@ -764,8 +772,10 @@ void pc_machine_done(Notifier *notifier, void *data)
                                         PCMachineState, machine_done);
     PCIBus *bus = pcms->bus;
 
+#if 0
     /* set the number of CPUs */
     rtc_set_cpus_count(pcms->rtc, pcms->boot_cpus);
+#endif
 
     if (bus) {
         int extra_hosts = 0;
@@ -1039,7 +1049,9 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
 
     *rtc_state = mc146818_rtc_init(isa_bus, 2000, rtc_irq);
 
+#if 0
     qemu_register_boot_set(pc_boot_set, *rtc_state);
+#endif
 
     if (has_pit) {
         if (kvm_pit_in_kernel()) {
@@ -1229,9 +1241,11 @@ static void pc_cpu_plug(HotplugHandler *hotplug_dev,
 
     /* increment the number of CPUs */
     pcms->boot_cpus++;
+#if 0
     if (pcms->rtc) {
         rtc_set_cpus_count(pcms->rtc, pcms->boot_cpus);
     }
+#endif
     if (pcms->fw_cfg) {
         fw_cfg_modify_i16(pcms->fw_cfg, FW_CFG_NB_CPUS, pcms->boot_cpus);
     }
@@ -1296,8 +1310,10 @@ static void pc_cpu_unplug_cb(HotplugHandler *hotplug_dev,
 
     /* decrement the number of CPUs */
     pcms->boot_cpus--;
+#if 0
     /* Update the number of CPUs in CMOS */
     rtc_set_cpus_count(pcms->rtc, pcms->boot_cpus);
+#endif
     fw_cfg_modify_i16(pcms->fw_cfg, FW_CFG_NB_CPUS, pcms->boot_cpus);
  out:
     error_propagate(errp, local_err);
