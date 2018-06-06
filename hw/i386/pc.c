@@ -229,10 +229,12 @@ void pc_cmos_init(PCMachineState *pcms,
 
     set_boot_dev(s, MACHINE(pcms)->boot_order, &error_fatal);
 
+#if 0
     val = 0;
     val |= 0x02; /* FPU is there */
     val |= 0x04; /* PS/2 mouse installed */
     rtc_set_memory(s, REG_EQUIPMENT_BYTE, val);
+#endif
 }
 
 int e820_add_entry(uint64_t address, uint64_t length, uint32_t type)
