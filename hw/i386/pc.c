@@ -189,7 +189,7 @@ void pc_cmos_init(PCMachineState *pcms,
     int val;
 
     /* various important CMOS locations needed by PC/Bochs bios */
-
+#if 0
     /* memory size */
     /* base memory (first MiB) */
     val = MIN(pcms->below_4g_mem_size / 1024, 640);
@@ -207,6 +207,7 @@ void pc_cmos_init(PCMachineState *pcms,
     rtc_set_memory(s, 0x18, val >> 8);
     rtc_set_memory(s, 0x30, val);
     rtc_set_memory(s, 0x31, val >> 8);
+#endif
     /* memory between 16MiB and 4GiB */
     if (pcms->below_4g_mem_size > 16 * 1024 * 1024) {
         val = (pcms->below_4g_mem_size - 16 * 1024 * 1024) / 65536;
