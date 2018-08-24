@@ -40,6 +40,8 @@ static void fw_build_smbios(MachineState *ms, FWCfgState *fw_cfg)
     unsigned i, array_count;
     X86CPU *cpu = X86_CPU(ms->possible_cpus->cpus[0].cpu);
 
+    printf("fw_build_smbios....\n\n");
+
     /* tell smbios about cpuid version and features */
     smbios_set_cpuid(cpu->env.cpuid_version, cpu->env.features[FEAT_1_EDX]);
 
@@ -57,7 +59,9 @@ static void fw_build_smbios(MachineState *ms, FWCfgState *fw_cfg)
         if (e820_get_entry(i, E820_RAM, &addr, &len)) {
             mem_array[array_count].address = addr;
             mem_array[array_count].length = len;
+	    printf("e820 entry addr [%d][%lx][%lx]\n", i, addr, len);
             array_count++;
+
         }
     }
     smbios_get_tables(mem_array, array_count,

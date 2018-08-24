@@ -226,10 +226,12 @@ struct AcpiBuildTables {
     BIOSLinker *linker;
 } AcpiBuildTables;
 
+#define ACPI_MCFG_MAX_SEGMENTS 16
 typedef struct AcpiMcfgInfo {
-    uint64_t mcfg_base;
-    uint32_t mcfg_size;
+    uint64_t mcfg_base[ACPI_MCFG_MAX_SEGMENTS];
+    uint32_t mcfg_size[ACPI_MCFG_MAX_SEGMENTS];
 } AcpiMcfgInfo;
+
 
 typedef struct AcpiPciBus {
     PCIBus *pci_bus;
@@ -409,7 +411,9 @@ build_header(BIOSLinker *linker, GArray *table_data,
 void *acpi_data_push(GArray *table_data, unsigned size);
 unsigned acpi_data_len(GArray *table);
 Object *acpi_get_pci_host(void);
+Object *acpi_get_pci_host_secondary(void);
 void acpi_get_pci_holes(Range *hole, Range *hole64);
+void acpi_get_pci_holes_secondary(Range *hole, Range *hole64);
 bool acpi_get_mcfg(AcpiMcfgInfo *mcfg);
 void acpi_link(AcpiConfiguration *conf, BIOSLinker *linker, Error **errp);
 void acpi_align_size(GArray *blob, unsigned align);
@@ -421,7 +425,9 @@ void acpi_build_mcfg(GArray *table_data, BIOSLinker *linker, AcpiMcfgInfo *info)
 Aml *build_gsi_link_dev(const char *name, uint8_t uid, uint8_t gsi);
 Aml *build_prt(bool is_pci0_prt);
 void acpi_dsdt_add_pci_bus(Aml *table, AcpiPciBus *pci_host);
+void acpi_dsdt_add_pci_bus_segment(Aml *table, AcpiPciBus *pci_host);
 void build_pci_host_bridge(Aml *table, AcpiPciBus *pci_host);
+void build_pci_segment_bridge(Aml *table, AcpiPciBus *pci_host);
 void crs_range_set_init(CrsRangeSet *range_set);
 Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set);
 void crs_replace_with_free_ranges(GPtrArray *ranges,
