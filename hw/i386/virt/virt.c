@@ -44,6 +44,7 @@
 #include "hw/mem/pc-dimm.h"
 
 #include "hw/pci-host/pci-lite.h"
+#include "hw/pci-host/pci-virt.h"
 
 #include "cpu.h"
 #include "kvm_i386.h"
@@ -159,7 +160,7 @@ static void virt_ioapic_init(VirtMachineState *vms)
     /* KVM IOAPIC */
     assert(kvm_ioapic_in_kernel());
     ioapic_dev = qdev_create(NULL, "kvm-ioapic");
-    object_property_add_child(OBJECT(vms->pci_bus), "ioapic", OBJECT(ioapic_dev), NULL);
+    object_property_add_child(qdev_get_machine(), "ioapic", OBJECT(ioapic_dev), NULL);
     qdev_init_nofail(ioapic_dev);
     d = SYS_BUS_DEVICE(ioapic_dev);
     sysbus_mmio_map(d, 0, IO_APIC_DEFAULT_ADDRESS);
@@ -174,11 +175,18 @@ static void virt_ioapic_init(VirtMachineState *vms)
 static void virt_pci_init(VirtMachineState *vms)
 {
     MemoryRegion *pci_memory;
+    MemoryRegion *pci_virt_memory;
 
     pci_memory = g_new(MemoryRegion, 1);
+    pci_virt_memory = g_new(MemoryRegion, 1);
+
     memory_region_init(pci_memory, NULL, "pci", UINT64_MAX);
     vms->pci_bus = pci_lite_init(get_system_memory(), get_system_io(),
                                  pci_memory);
+
+    memory_region_init(pci_virt_memory, NULL, "0.pci", UINT64_MAX);
+    vms->pci_virt_bus = pci_virt_init(get_system_memory(), get_system_io(),
+		                      pci_virt_memory);
 }
 
 static void virt_machine_state_init(MachineState *machine)
