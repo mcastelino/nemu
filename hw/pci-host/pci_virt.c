@@ -50,9 +50,22 @@
     OBJECT_CHECK(PCIVirtHost, (obj), TYPE_PCI_VIRT_HOST)
 
 #define PCI_VIRT_NUM_IRQS       4            /* TODO: MSI only */
-#define PCI_VIRT_PCIEXBAR_BASE  (0x4000000000) /* 256GB for now. Should be offset
-						  from top of platform max memory */
-#define PCI_VIRT_PCIEXBAR_SIZE  (0x10000000) /* 256M for bus 0 */
+/* 256GB for now. Ideally it should be after the hotplug
+ * and cold plug memory areas
+ */
+#define PCI_VIRT_PCIEXBAR_BASE  (0x4000000000) 
+
+/* Will the scan logic fail if it does not see the full 256MB */
+/* Right now setup full 256 MB */
+#define PCI_VIRT_PCIEXBAR_SIZE    (0x10000000) /* 256M for bus 0 */
+
+//TODO: We may not need it to be this large
+// we need just enough to hold one device worth of BARs
+// Can we just use the main hole?
+// TODO: Duplicated define. Refactor it
+#define DEFAULT_PCI_HOLE64_SIZE (1ULL << 35) 
+//TODO: Place it right after the main PCI hole, pick a safe number
+#define PCI_VIRT_HOLE64_START_BASE 0x200000000ULL 
 
 
 typedef struct PCIVirtHost {
@@ -60,8 +73,104 @@ typedef struct PCIVirtHost {
     PCIExpressHost parent_obj;
     /*< public >*/
 
+    Range pci_hole;
+    Range pci_hole64;
+    uint64_t pci_hole64_size;
+
     qemu_irq irq[PCI_VIRT_NUM_IRQS]; //TODO: MSI Only
 } PCIVirtHost;
+
+/*
+ * The 64bit pci hole starts after "above 4G RAM" and
+ * potentially the space reserved for memory hotplug.
+ * and beyond the main PCI hole
+ * TODO: How to make this more generic when we have more segments
+ * Also this is cumulative. 
+ */
+static uint64_t pci_virt_pci_hole64_start(void)
+{
+    VirtMachineState *vms = VIRT_MACHINE(qdev_get_machine());
+    uint64_t hole64_start = 0;
+
+    if (vms->hotplug_memory.base) {
+        hole64_start = vms->hotplug_memory.base;
+        hole64_start += memory_region_size(&vms->hotplug_memory.mr);
+        hole64_start += memory_region_size(&vms->hotplug_memory.mr);
+    } else {
+        //hole64_start = PCI_LITE_HOLE64_START_BASE + vms->above_4g_mem_size;
+        hole64_start = 0x100000000ULL + vms->above_4g_mem_size;
+    }
+
+    hole64_start = ROUND_UP(hole64_start, 1ULL << 30);
+    hole64_start += DEFAULT_PCI_HOLE64_SIZE;
+    return hole64_start;
+}
+
+
+// We cannot use the lower 4GB. Can QEMU Handle returning 0
+// for start and end
+static void pci_virt_get_pci_hole_start(Object *obj, Visitor *v,
+                                        const char *name, void *opaque,
+                                        Error **errp)
+{
+    //PCIVirtHost *s = PCI_VIRT_HOST(obj);
+    //uint64_t val64;
+    uint32_t value = 0;
+
+    //val64 = range_is_empty(&s->pci_hole) ? 0 : range_lob(&s->pci_hole);
+    //value = val64;
+    //assert(value == val64);
+    visit_type_uint32(v, name, &value, errp);
+}
+
+static void pci_virt_get_pci_hole_end(Object *obj, Visitor *v,
+                                      const char *name, void *opaque,
+                                      Error **errp)
+{
+    //PCIVirtHost *s = PCI_VIRT_HOST(obj);
+    //uint64_t val64;
+    uint32_t value = 0;
+
+    //val64 = range_is_empty(&s->pci_hole) ? 0 : range_upb(&s->pci_hole) + 1;
+    //value = val64;
+    //assert(value == val64);
+    visit_type_uint32(v, name, &value, errp);
+}
+
+static void pci_virt_get_pci_hole64_start(Object *obj, Visitor *v,
+                                          const char *name,
+                                          void *opaque, Error **errp)
+{
+    PCIHostState *h = PCI_HOST_BRIDGE(obj);
+    Range w64;
+    uint64_t value;
+
+    pci_bus_get_w64_range(h->bus, &w64);
+    value = range_is_empty(&w64) ? 0 : range_lob(&w64);
+    if (!value) {
+        value = pci_virt_pci_hole64_start();
+    }
+    visit_type_uint64(v, name, &value, errp);
+}
+
+static void pci_virt_get_pci_hole64_end(Object *obj, Visitor *v,
+                                        const char *name, void *opaque,
+                                        Error **errp)
+{
+    PCIHostState *h = PCI_HOST_BRIDGE(obj);
+    PCIVirtHost *s = PCI_VIRT_HOST(obj);
+    uint64_t hole64_start = pci_virt_pci_hole64_start();
+    Range w64;
+    uint64_t value, hole64_end;
+
+    pci_bus_get_w64_range(h->bus, &w64);
+    value = range_is_empty(&w64) ? 0 : range_upb(&w64) + 1;
+    hole64_end = ROUND_UP(hole64_start + s->pci_hole64_size, 1ULL << 30);
+    if (value < hole64_end) {
+        value = hole64_end;
+    }
+    visit_type_uint64(v, name, &value, errp);
+}
 
 static void pci_virt_initfn(Object *obj)
 {
@@ -72,6 +181,22 @@ static void pci_virt_initfn(Object *obj)
                           "pci-conf-idx", 4);
     memory_region_init_io(&s->data_mem, obj, &pci_host_data_le_ops, s,
                           "pci-conf-data", 4);
+
+    object_property_add(obj, PCI_HOST_PROP_PCI_HOLE_START, "int",
+                        pci_virt_get_pci_hole_start,
+                        NULL, NULL, NULL, NULL);
+
+    object_property_add(obj, PCI_HOST_PROP_PCI_HOLE_END, "int",
+                        pci_virt_get_pci_hole_end,
+                        NULL, NULL, NULL, NULL);
+
+    object_property_add(obj, PCI_HOST_PROP_PCI_HOLE64_START, "int",
+                        pci_virt_get_pci_hole64_start,
+                        NULL, NULL, NULL, NULL);
+
+    object_property_add(obj, PCI_HOST_PROP_PCI_HOLE64_END, "int",
+                        pci_virt_get_pci_hole64_end,
+                        NULL, NULL, NULL, NULL);
 
 }
 
@@ -86,10 +211,10 @@ static void pci_virt_set_irq(void *opaque, int irq_num, int level)
 static void pci_virt_realize(DeviceState *dev, Error **errp)
 {
     /* PCIHostState *s = PCI_HOST_BRIDGE(dev); */
-    PCIVirtHost *d = PCI_VIRT_HOST(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    //PCIVirtHost *d = PCI_VIRT_HOST(dev);
+    //SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
-    int i;
+    //int i;
     /* TODO: We do not add any IO Ports are IRQs here
 
     sysbus_add_io(sbd, 0xcf8, &s->conf_mem);
@@ -97,11 +222,11 @@ static void pci_virt_realize(DeviceState *dev, Error **errp)
 
     sysbus_add_io(sbd, 0xcfc, &s->data_mem);
     sysbus_init_ioports(sbd, 0xcfc, 4);
-    */
 
     for (i = 0; i < PCI_VIRT_NUM_IRQS; i++) {
         sysbus_init_irq(sbd, &d->irq[i]);
     }
+    */
 }
 
 PCIBus *pci_virt_init(MemoryRegion *address_space_mem,
@@ -111,7 +236,7 @@ PCIBus *pci_virt_init(MemoryRegion *address_space_mem,
     DeviceState *dev;
     PCIHostState *pci;
     PCIExpressHost *pcie;
-    //PCIVirtHost *pci_virt;
+    PCIVirtHost *pci_virt;
 
     dev = qdev_create(NULL, TYPE_PCI_VIRT_HOST);
     pci = PCI_HOST_BRIDGE(dev);
@@ -120,6 +245,14 @@ PCIBus *pci_virt_init(MemoryRegion *address_space_mem,
     pci->bus = pci_register_root_bus(dev, "1.pcie.0", pci_virt_set_irq,
                                 pci_swizzle_map_irq_fn, pci, pci_address_space,
                                 address_space_io, 0, 4, TYPE_PCIE_BUS); 
+
+    object_property_add_child(qdev_get_machine(), "pcivirt", OBJECT(dev), NULL);
+    qdev_init_nofail(dev);
+
+    //TODO: We do not have a hole in the lower 4GB
+    pci_virt = PCI_VIRT_HOST(dev);
+    range_set_bounds(&pci_virt->pci_hole, 0, 0);
+
     //No legacy IRQs and IO
     //pci_virt = PCI_VIRT_HOST(dev);
 
@@ -146,6 +279,8 @@ static Property pci_virt_props[] = {
                        parent_obj.base_addr, PCI_VIRT_PCIEXBAR_BASE),
     DEFINE_PROP_UINT64(PCIE_HOST_MCFG_SIZE, PCIVirtHost,
                        parent_obj.size, PCI_VIRT_PCIEXBAR_SIZE),
+    DEFINE_PROP_SIZE(PCI_HOST_PROP_PCI_HOLE64_SIZE, PCIVirtHost,
+                     pci_hole64_size, DEFAULT_PCI_HOLE64_SIZE),
     DEFINE_PROP_END_OF_LIST(),
 };
 

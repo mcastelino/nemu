@@ -156,6 +156,7 @@ static void acpi_reduced_build(MachineState *ms, AcpiBuildTables *tables, AcpiCo
                              ACPI_BUILD_TABLE_FILE, tables_blob,
                              64, false /* high memory */);
 
+    //TODO: This only comprehends a single hole
     AcpiPciBus pci_host = {
         .pci_bus    = VIRT_MACHINE(ms)->pci_bus,
         .pci_hole   = &pci_hole,

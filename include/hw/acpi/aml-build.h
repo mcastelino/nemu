@@ -226,9 +226,10 @@ struct AcpiBuildTables {
     BIOSLinker *linker;
 } AcpiBuildTables;
 
+#define ACPI_MCFG_MAX_SEGMENTS 16
 typedef struct AcpiMcfgInfo {
-    uint64_t mcfg_base;
-    uint32_t mcfg_size;
+    uint64_t mcfg_base[ACPI_MCFG_MAX_SEGMENTS];
+    uint32_t mcfg_size[ACPI_MCFG_MAX_SEGMENTS];
 } AcpiMcfgInfo;
 
 typedef struct AcpiPciBus {
