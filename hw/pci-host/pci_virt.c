@@ -53,7 +53,9 @@
 /* 256GB for now. Ideally it should be after the hotplug
  * and cold plug memory areas
  */
-#define PCI_VIRT_PCIEXBAR_BASE  (0x4000000000) 
+//#define PCI_VIRT_PCIEXBAR_BASE  (0x4000000000) 
+//TODO: Till we fix DMI place it below the current bar base
+#define PCI_VIRT_PCIEXBAR_BASE  (0x70000000)
 
 /* Will the scan logic fail if it does not see the full 256MB */
 /* Right now setup full 256 MB */
