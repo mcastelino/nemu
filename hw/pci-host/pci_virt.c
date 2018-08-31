@@ -246,6 +246,17 @@ PCIBus *pci_virt_init(MemoryRegion *address_space_mem,
                                 pci_swizzle_map_irq_fn, pci, pci_address_space,
                                 address_space_io, 0, 4, TYPE_PCIE_BUS); 
 
+    //TODO: This is pretty static, but this is due to the way that
+    //acpi tries to build the mcfg
+    //acpi_get_mcfg(AcpiMcfgInfo *mcfg) ->
+    //   pci_host = acpi_get_pci_host();
+    //which looks at and assumes a single PCI hierarchy
+    //static const char *pci_hosts[] = {
+    //   "/machine/i440fx",
+    //   "/machine/q35",
+    //   "/machine/pcilite",
+    //   "/machine/pcivirt",
+    //    NULL,
     object_property_add_child(qdev_get_machine(), "pcivirt", OBJECT(dev), NULL);
     qdev_init_nofail(dev);
 

@@ -47,6 +47,7 @@ static const char *pci_hosts[] = {
    "/machine/i440fx",
    "/machine/q35",
    "/machine/pcilite",
+   "/machine/pcivirt",
    NULL,
 };
 
@@ -1625,6 +1626,7 @@ void acpi_build_tables_cleanup(AcpiBuildTables *tables, bool mfre)
 /*
  * Because of the PXB hosts we cannot simply query TYPE_PCI_HOST_BRIDGE.
  * On i386 arch we only have two pci hosts, so we can look only for them.
+ * TODO: We need to find a way to accomodate directly connected PCI devices
  */
 Object *acpi_get_pci_host(void)
 {
@@ -1645,6 +1647,31 @@ Object *acpi_get_pci_host(void)
     return NULL;
 }
 
+Object *acpi_get_pci_host_secondary(void)
+{
+    PCIHostState *host;
+    int i = 0;
+    int hostseen = 0;
+
+    while (pci_hosts[i]) {
+        host = OBJECT_CHECK(PCIHostState,
+                            object_resolve_path(pci_hosts[i], NULL),
+                            TYPE_PCI_HOST_BRIDGE); //TODO: Make this not a bridge
+        if (host) {
+	   //Skip the primary
+	   hostseen++;
+	   if (hostseen == 2) {
+              return OBJECT(host);
+	   }
+        }
+
+        i++;
+    }
+
+    return NULL;
+}
+
+//TODO: We can have multiple holes. We need to combine them together
 void acpi_get_pci_holes(Range *hole, Range *hole64)
 {
     Object *pci_host;
@@ -1691,7 +1718,7 @@ bool acpi_get_mcfg(AcpiMcfgInfo *mcfg)
     qobject_decref(o);
 
     //TODO: Hardcode the second segment for now
-    pci_host = acpi_get_pci_host();
+    pci_host = acpi_get_pci_host_secondary();
     g_assert(pci_host);
 
     o = object_property_get_qobject(pci_host, PCIE_HOST_MCFG_BASE, NULL);
@@ -2044,7 +2071,7 @@ acpi_build_mcfg(GArray *table_data, BIOSLinker *linker, AcpiMcfgInfo *info)
     //TODO: hardcoded for now
     mcfg->allocation[1].address = cpu_to_le64(info->mcfg_base[1]);
     /* Only a single allocation so no need to play with segments */
-    mcfg->allocation[1].pci_segment = cpu_to_le16(0);
+    mcfg->allocation[1].pci_segment = cpu_to_le16(1);
     mcfg->allocation[1].start_bus_number = 0;
     mcfg->allocation[1].end_bus_number = PCIE_MMCFG_BUS(info->mcfg_size[1] - 1);
 
