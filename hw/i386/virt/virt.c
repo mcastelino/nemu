@@ -51,6 +51,9 @@
 
 #include "../acpi-build.h"
 
+//FOr debugging only
+#include "hw/i386/memory.h"
+
 #define DEFINE_VIRT_MACHINE_LATEST(major, minor, latest) \
     static void virt_##major##_##minor##_object_class_init(ObjectClass *oc, \
                                                            void *data)  \
@@ -191,13 +194,20 @@ static void virt_pci_init(VirtMachineState *vms)
     pci_memory = g_new(MemoryRegion, 1);
     pci_virt_memory = g_new(MemoryRegion, 1);
 
+
     memory_region_init(pci_virt_memory, NULL, "0.pci", UINT64_MAX);
+    printf("pci_virt_init\n");
+    printf("e820 entries before := %x \n", e820_get_num_entries());
     vms->pci_virt_bus = pci_virt_init(get_system_memory(), get_system_io(),
 		                      pci_virt_memory);
+    printf("e820 entries after  := %x \n", e820_get_num_entries());
 
     memory_region_init(pci_memory, NULL, "pci", UINT64_MAX);
+    printf("pci_lite_init\n");
+    printf("e820 entries before  := %x \n", e820_get_num_entries());
     vms->pci_bus = pci_lite_init(get_system_memory(), get_system_io(),
                                  pci_memory);
+    printf("e820 entries after  := %x \n", e820_get_num_entries());
 
 }
 
@@ -262,6 +272,8 @@ static void virt_machine_state_init(MachineState *machine)
 
         vms->fw_cfg = fw_cfg;
         acpi_conf_virt_init(MACHINE(vms), vms->acpi_configuration);
+    
+	printf("e820 entries final  := %x \n", e820_get_num_entries());
 
         if (linux_boot) {
             load_linux_bzimage(MACHINE(vms), vms->acpi_configuration, fw_cfg);

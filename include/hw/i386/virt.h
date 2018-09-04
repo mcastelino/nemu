@@ -56,6 +56,7 @@ typedef struct {
     /* GSI */
     qemu_irq *gsi;
 
+    /* TODO: Chain these buses together */
     PCIBus *pci_bus;
     PCIBus *pci_virt_bus;
 

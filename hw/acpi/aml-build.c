@@ -1647,6 +1647,7 @@ Object *acpi_get_pci_host(void)
     return NULL;
 }
 
+/* TODO: Make the get host list function generic */
 Object *acpi_get_pci_host_secondary(void)
 {
     PCIHostState *host;
@@ -1676,6 +1677,7 @@ void acpi_get_pci_holes(Range *hole, Range *hole64)
 {
     Object *pci_host;
 
+    /* TODO: THis assumes a single host. Needs to be addressed */
     pci_host = acpi_get_pci_host();
     g_assert(pci_host);
 
@@ -2239,6 +2241,86 @@ Aml *build_prt(bool is_pci0_prt)
     return method;
 }
 
+//TODO: Temporary function
+void build_pci_segment_bridge(Aml *table, AcpiPciBus *pci_host)
+{
+    CrsRangeEntry *entry;
+    Aml *scope, *dev, *crs;
+    CrsRangeSet crs_range_set;
+    Range *pci_hole64 = NULL;
+    PCIBus *bus = NULL;
+    int root_bus_limit = 0xFF;
+    int i;
+
+    bus = pci_host->pci_bus;
+    assert(bus);
+    pci_hole64 = pci_host->pci_hole64;
+
+    crs_range_set_init(&crs_range_set);
+    QLIST_FOREACH(bus, &bus->child, sibling) {
+        uint8_t bus_num = pci_bus_num(bus);
+        uint8_t numa_node = pci_bus_numa_node(bus);
+
+        /* look only for expander root buses */
+        if (!pci_bus_is_root(bus)) {
+            continue;
+        }
+
+        if (bus_num < root_bus_limit) {
+            root_bus_limit = bus_num - 1;
+        }
+
+        scope = aml_scope("\\_SB");
+        dev = aml_device("PC%.02X", bus_num);
+        aml_append(dev, aml_name_decl("_UID", aml_int(bus_num)));
+        aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0A03")));
+        aml_append(dev, aml_name_decl("_BBN", aml_int(bus_num)));
+        if (pci_bus_is_express(bus)) {
+            aml_append(dev, aml_name_decl("SUPP", aml_int(0)));
+            aml_append(dev, aml_name_decl("CTRL", aml_int(0)));
+            aml_append(dev, build_osc_method(0x1F));
+        }
+        if (numa_node != NUMA_NODE_UNASSIGNED) {
+            aml_append(dev, aml_name_decl("_PXM", aml_int(numa_node)));
+        }
+
+        aml_append(dev, build_prt(false));
+        crs = build_crs(PCI_HOST_BRIDGE(BUS(bus)->parent), &crs_range_set);
+        aml_append(dev, aml_name_decl("_CRS", crs));
+        aml_append(scope, dev);
+        aml_append(table, scope);
+    }
+    /* TODO: This is hardcoded */
+    scope = aml_scope("\\_SB.PCI2");
+    /* build PCI0._CRS */
+    crs = aml_resource_template();
+    /* set the pcie bus num */
+    aml_append(crs,
+        aml_word_bus_number(AML_MIN_FIXED, AML_MAX_FIXED, AML_POS_DECODE,
+                            0x0000, 0x0, root_bus_limit,
+                            0x0000, root_bus_limit + 1));
+    
+    /* set the mem region 2 in pci host bridge */
+    if (!range_is_empty(pci_hole64)) {
+        crs_replace_with_free_ranges(crs_range_set.mem_64bit_ranges,
+                                     range_lob(pci_hole64),
+                                     range_upb(pci_hole64));
+        for (i = 0; i < crs_range_set.mem_64bit_ranges->len; i++) {
+            entry = g_ptr_array_index(crs_range_set.mem_64bit_ranges, i);
+            aml_append(crs,
+                       aml_qword_memory(AML_POS_DECODE, AML_MIN_FIXED,
+                                        AML_MAX_FIXED,
+                                        AML_CACHEABLE, AML_READ_WRITE,
+                                        0, entry->base, entry->limit,
+                                        0, entry->limit - entry->base + 1));
+        }
+    }
+
+    aml_append(scope, aml_name_decl("_CRS", crs));
+    crs_range_set_free(&crs_range_set);
+    aml_append(table, scope);
+}
+
 void build_pci_host_bridge(Aml *table, AcpiPciBus *pci_host)
 {
     CrsRangeEntry *entry;
@@ -2289,6 +2371,7 @@ void build_pci_host_bridge(Aml *table, AcpiPciBus *pci_host)
         aml_append(scope, dev);
         aml_append(table, scope);
     }
+    /* TODO: This is hardcoded */
     scope = aml_scope("\\_SB.PCI0");
     /* build PCI0._CRS */
     crs = aml_resource_template();
@@ -2319,6 +2402,7 @@ void build_pci_host_bridge(Aml *table, AcpiPciBus *pci_host)
                         0x0000, entry->limit - entry->base + 1));
     }
 
+    /* TODO: Do we need this for virt */
     /* set the vga mem region(0) in pci host bridge */
     aml_append(crs,
         aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
@@ -2327,6 +2411,9 @@ void build_pci_host_bridge(Aml *table, AcpiPciBus *pci_host)
                          0, VGA_MEM_LEN));
 
     /* set the mem region 1 in pci host bridge */
+    /* TODO: This hole may not exist for secondary segments
+     * needs to be handled properly
+     */
     crs_replace_with_free_ranges(crs_range_set.mem_ranges,
                                  range_lob(pci_hole),
                                  range_upb(pci_hole));
@@ -2360,6 +2447,7 @@ void build_pci_host_bridge(Aml *table, AcpiPciBus *pci_host)
     aml_append(table, scope);
 }
 
+//TODO: Make it generic to support multiple buses
 void acpi_dsdt_add_pci_bus(Aml *table, AcpiPciBus *pci_host)
 {
     Aml *dev, *sb_scope;
@@ -2376,7 +2464,29 @@ void acpi_dsdt_add_pci_bus(Aml *table, AcpiPciBus *pci_host)
     aml_append(sb_scope, dev);
     aml_append(table, sb_scope);
 
+    //TODO: This assumes a host bridge
     build_pci_host_bridge(table, pci_host);
+}
+
+void acpi_dsdt_add_pci_bus_segment(Aml *table, AcpiPciBus *pci_host)
+{
+    Aml *dev, *sb_scope;
+
+    sb_scope = aml_scope("_SB");
+    dev = aml_device("PCI2");
+    aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0A08")));
+    aml_append(dev, aml_name_decl("_CID", aml_eisaid("PNP0A03")));
+    aml_append(dev, aml_name_decl("_ADR", aml_int(0)));
+    //TODO: Indicate the right segment number
+    aml_append(dev, aml_name_decl("_SEG", aml_int(1)));
+    aml_append(dev, aml_name_decl("_UID", aml_int(1)));
+    aml_append(dev, aml_name_decl("SUPP", aml_int(0)));
+    aml_append(dev, aml_name_decl("CTRL", aml_int(0)));
+    aml_append(dev, build_osc_method(0x1F));
+    aml_append(sb_scope, dev);
+    aml_append(table, sb_scope);
+
+    build_pci_segment_bridge(table, pci_host);
 }
 
 #define HOLE_640K_START  (640 * 1024)

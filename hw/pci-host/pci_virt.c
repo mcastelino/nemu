@@ -55,7 +55,7 @@
  */
 //#define PCI_VIRT_PCIEXBAR_BASE  (0x4000000000) 
 //TODO: Till we fix DMI place it below the current bar base
-#define PCI_VIRT_PCIEXBAR_BASE  (0x70000000)
+#define PCI_VIRT_PCIEXBAR_BASE    (0x70000000)
 
 /* Will the scan logic fail if it does not see the full 256MB */
 /* Right now setup full 256 MB */
@@ -273,6 +273,7 @@ PCIBus *pci_virt_init(MemoryRegion *address_space_mem,
                            PCI_VIRT_PCIEXBAR_SIZE);
     e820_add_entry(PCI_VIRT_PCIEXBAR_BASE, PCI_VIRT_PCIEXBAR_SIZE,
                    E820_RESERVED);
+    printf("e820 entries after virt := %x \n", e820_get_num_entries());
 
     /* setup pci memory mapping */
     pc_pci_as_mapping_init(OBJECT(dev), address_space_mem, pci_address_space);

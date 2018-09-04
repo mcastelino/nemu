@@ -29,6 +29,8 @@ int e820_add_entry(uint64_t address, uint64_t length, uint32_t type)
     int index = le32_to_cpu(e820_reserve.count);
     struct e820_entry *entry;
 
+    printf("adding e820 entry [%lx][%lx][%x][%x]\n", address, length, type, index);
+
     if (type != E820_RAM) {
         /* old FW_CFG_E820_TABLE entry -- reservations only */
         if (index >= E820_NR_ENTRIES) {
@@ -41,9 +43,11 @@ int e820_add_entry(uint64_t address, uint64_t length, uint32_t type)
         entry->type = cpu_to_le32(type);
 
         e820_reserve.count = cpu_to_le32(index);
+        printf("adding e820 entry to legacy [%lx][%lx][%x]\n", address, length, type);
     }
 
     /* new "etc/e820" file -- include ram too */
+    printf("adding etc/e820 entry [%lx][%lx][%x]\n", address, length, e820_entries);
     e820_table = g_renew(struct e820_entry, e820_table, e820_entries + 1);
     e820_table[e820_entries].address = cpu_to_le64(address);
     e820_table[e820_entries].length = cpu_to_le64(length);
