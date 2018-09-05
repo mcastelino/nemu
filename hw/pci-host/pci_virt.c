@@ -42,6 +42,7 @@
 #include "qapi/visitor.h"
 #include "qemu/error-report.h"
 #include "hw/i386/virt.h"
+#include "hw/virtio/virtio-pci.h"
 
 #define TYPE_PCI_VIRT_HOST      "pci-virt-host"
 #define TYPE_PCI_VIRT_DEVICE    "pci-virt-device"
@@ -278,7 +279,9 @@ PCIBus *pci_virt_init(MemoryRegion *address_space_mem,
     /* setup pci memory mapping */
     pc_pci_as_mapping_init(OBJECT(dev), address_space_mem, pci_address_space);
 
-    pci_create_simple(pci->bus, 0, TYPE_PCI_VIRT_DEVICE);
+    //Directly place the network device on the bus???
+    //pci_create_simple(pci->bus, 0, TYPE_PCI_VIRT_DEVICE);
+    pci_create_simple(pci->bus, 0, TYPE_VIRTIO_NET_PCI);
     return pci->bus;
 }
 
