@@ -147,10 +147,12 @@ static void acpi_reduced_build(MachineState *ms, AcpiBuildTables *tables, AcpiCo
     GArray *table_offsets;
     unsigned dsdt, xsdt;
     Range pci_hole, pci_hole64;
+    Range pci_hole_2, pci_hole64_2;
     AcpiMcfgInfo mcfg;
     GArray *tables_blob = tables->table_data;
 
     acpi_get_pci_holes(&pci_hole, &pci_hole64);
+    acpi_get_pci_holes_secondary(&pci_hole_2, &pci_hole64_2);
     table_offsets = g_array_new(false, true /* clear */,
                                         sizeof(uint32_t));
 
@@ -168,8 +170,8 @@ static void acpi_reduced_build(MachineState *ms, AcpiBuildTables *tables, AcpiCo
     //TODO: This only comprehends a single hole and bus
     AcpiPciBus pci_host2 = {
         .pci_bus    = VIRT_MACHINE(ms)->pci_virt_bus,
-        .pci_hole   = &pci_hole,
-        .pci_hole64 = &pci_hole64,
+        .pci_hole   = &pci_hole_2,
+        .pci_hole64 = &pci_hole64_2,
     };
 
     /* DSDT is pointed to by FADT */

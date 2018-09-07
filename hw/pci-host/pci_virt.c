@@ -56,7 +56,7 @@
  */
 //#define PCI_VIRT_PCIEXBAR_BASE  (0x4000000000) 
 //TODO: Till we fix DMI place it below the current bar base
-#define PCI_VIRT_PCIEXBAR_BASE    (0x70000000)
+#define PCI_VIRT_PCIEXBAR_BASE    (0x60000000)
 
 /* Will the scan logic fail if it does not see the full 256MB */
 /* Right now setup full 256 MB */
@@ -66,9 +66,10 @@
 // we need just enough to hold one device worth of BARs
 // Can we just use the main hole?
 // TODO: Duplicated define. Refactor it
-#define DEFAULT_PCI_HOLE64_SIZE (1ULL << 35) 
+//#define DEFAULT_PCI_HOLE64_SIZE (1ULL << 35) 
 //TODO: Place it right after the main PCI hole, pick a safe number
-#define PCI_VIRT_HOLE64_START_BASE 0x200000000ULL 
+#define PCI_VIRT_HOLE64_START_BASE 0x900000000ULL 
+#define DEFAULT_PCI_HOLE64_SIZE    (0x10000000) /* 256M for now */
 
 
 typedef struct PCIVirtHost {
@@ -92,20 +93,11 @@ typedef struct PCIVirtHost {
  */
 static uint64_t pci_virt_pci_hole64_start(void)
 {
-    VirtMachineState *vms = VIRT_MACHINE(qdev_get_machine());
+    //VirtMachineState *vms = VIRT_MACHINE(qdev_get_machine());
     uint64_t hole64_start = 0;
 
-    if (vms->hotplug_memory.base) {
-        hole64_start = vms->hotplug_memory.base;
-        hole64_start += memory_region_size(&vms->hotplug_memory.mr);
-        hole64_start += memory_region_size(&vms->hotplug_memory.mr);
-    } else {
-        //hole64_start = PCI_LITE_HOLE64_START_BASE + vms->above_4g_mem_size;
-        hole64_start = 0x100000000ULL + vms->above_4g_mem_size;
-    }
-
-    hole64_start = ROUND_UP(hole64_start, 1ULL << 30);
-    hole64_start += DEFAULT_PCI_HOLE64_SIZE;
+    //TODO: These holes need to placed dynamically
+    hole64_start = PCI_VIRT_HOLE64_START_BASE;
     return hole64_start;
 }
 
@@ -116,13 +108,8 @@ static void pci_virt_get_pci_hole_start(Object *obj, Visitor *v,
                                         const char *name, void *opaque,
                                         Error **errp)
 {
-    //PCIVirtHost *s = PCI_VIRT_HOST(obj);
-    //uint64_t val64;
+    //TODO: We do not want to support any 32 bit BARs
     uint32_t value = 0;
-
-    //val64 = range_is_empty(&s->pci_hole) ? 0 : range_lob(&s->pci_hole);
-    //value = val64;
-    //assert(value == val64);
     visit_type_uint32(v, name, &value, errp);
 }
 
@@ -130,13 +117,8 @@ static void pci_virt_get_pci_hole_end(Object *obj, Visitor *v,
                                       const char *name, void *opaque,
                                       Error **errp)
 {
-    //PCIVirtHost *s = PCI_VIRT_HOST(obj);
-    //uint64_t val64;
+    //TODO: We do not want to support any 32 bit BARs
     uint32_t value = 0;
-
-    //val64 = range_is_empty(&s->pci_hole) ? 0 : range_upb(&s->pci_hole) + 1;
-    //value = val64;
-    //assert(value == val64);
     visit_type_uint32(v, name, &value, errp);
 }
 
@@ -144,15 +126,15 @@ static void pci_virt_get_pci_hole64_start(Object *obj, Visitor *v,
                                           const char *name,
                                           void *opaque, Error **errp)
 {
-    PCIHostState *h = PCI_HOST_BRIDGE(obj);
-    Range w64;
+    //PCIHostState *h = PCI_HOST_BRIDGE(obj);
+    //Range w64;
     uint64_t value;
 
-    pci_bus_get_w64_range(h->bus, &w64);
-    value = range_is_empty(&w64) ? 0 : range_lob(&w64);
-    if (!value) {
+    //pci_bus_get_w64_range(h->bus, &w64);
+    //value = range_is_empty(&w64) ? 0 : range_lob(&w64);
+    //if (!value) {
         value = pci_virt_pci_hole64_start();
-    }
+    //}
     visit_type_uint64(v, name, &value, errp);
 }
 
@@ -213,23 +195,7 @@ static void pci_virt_set_irq(void *opaque, int irq_num, int level)
 
 static void pci_virt_realize(DeviceState *dev, Error **errp)
 {
-    /* PCIHostState *s = PCI_HOST_BRIDGE(dev); */
-    //PCIVirtHost *d = PCI_VIRT_HOST(dev);
-    //SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-
-    //int i;
-    /* TODO: We do not add any IO Ports are IRQs here
-
-    sysbus_add_io(sbd, 0xcf8, &s->conf_mem);
-    sysbus_init_ioports(sbd, 0xcf8, 4);
-
-    sysbus_add_io(sbd, 0xcfc, &s->data_mem);
-    sysbus_init_ioports(sbd, 0xcfc, 4);
-
-    for (i = 0; i < PCI_VIRT_NUM_IRQS; i++) {
-        sysbus_init_irq(sbd, &d->irq[i]);
-    }
-    */
+    /* TODO: We do not add any IO Ports are IRQs here */
 }
 
 PCIBus *pci_virt_init(MemoryRegion *address_space_mem,
@@ -267,6 +233,10 @@ PCIBus *pci_virt_init(MemoryRegion *address_space_mem,
     pci_virt = PCI_VIRT_HOST(dev);
     range_set_bounds(&pci_virt->pci_hole, 0, 0);
 
+    
+    range_set_bounds(&pci_virt->pci_hole64, PCI_VIRT_HOLE64_START_BASE,
+		    PCI_VIRT_HOLE64_START_BASE+DEFAULT_PCI_HOLE64_SIZE);
+
     //No legacy IRQs and IO
     //pci_virt = PCI_VIRT_HOST(dev);
 
@@ -274,7 +244,6 @@ PCIBus *pci_virt_init(MemoryRegion *address_space_mem,
                            PCI_VIRT_PCIEXBAR_SIZE);
     e820_add_entry(PCI_VIRT_PCIEXBAR_BASE, PCI_VIRT_PCIEXBAR_SIZE,
                    E820_RESERVED);
-    printf("e820 entries after virt := %x \n", e820_get_num_entries());
 
     /* setup pci memory mapping */
     pc_pci_as_mapping_init(OBJECT(dev), address_space_mem, pci_address_space);

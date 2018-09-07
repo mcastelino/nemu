@@ -1697,6 +1697,32 @@ void acpi_get_pci_holes(Range *hole, Range *hole64)
                                                NULL));
 }
 
+//TODO: Temporary function
+void acpi_get_pci_holes_secondary(Range *hole, Range *hole64)
+{
+    Object *pci_host;
+
+    /* TODO: THis assumes a single host. Needs to be addressed */
+    pci_host = acpi_get_pci_host_secondary();
+    g_assert(pci_host);
+
+    range_set_bounds1(hole,
+                      object_property_get_uint(pci_host,
+                                               PCI_HOST_PROP_PCI_HOLE_START,
+                                               NULL),
+                      object_property_get_uint(pci_host,
+                                               PCI_HOST_PROP_PCI_HOLE_END,
+                                               NULL));
+    range_set_bounds1(hole64,
+                      object_property_get_uint(pci_host,
+                                               PCI_HOST_PROP_PCI_HOLE64_START,
+                                               NULL),
+                      object_property_get_uint(pci_host,
+                                               PCI_HOST_PROP_PCI_HOLE64_END,
+                                               NULL));
+}
+
+
 //TODO: Enable multisegment support
 bool acpi_get_mcfg(AcpiMcfgInfo *mcfg)
 {

@@ -232,6 +232,7 @@ typedef struct AcpiMcfgInfo {
     uint32_t mcfg_size[ACPI_MCFG_MAX_SEGMENTS];
 } AcpiMcfgInfo;
 
+
 typedef struct AcpiPciBus {
     PCIBus *pci_bus;
     Range *pci_hole;
@@ -412,6 +413,7 @@ unsigned acpi_data_len(GArray *table);
 Object *acpi_get_pci_host(void);
 Object *acpi_get_pci_host_secondary(void);
 void acpi_get_pci_holes(Range *hole, Range *hole64);
+void acpi_get_pci_holes_secondary(Range *hole, Range *hole64);
 bool acpi_get_mcfg(AcpiMcfgInfo *mcfg);
 void acpi_link(AcpiConfiguration *conf, BIOSLinker *linker, Error **errp);
 void acpi_align_size(GArray *blob, unsigned align);
