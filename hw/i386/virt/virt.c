@@ -137,6 +137,7 @@ static void virt_gsi_handler(void *opaque, int n, int level)
     qemu_set_irq(ioapic_irq[n], level);
 }
 
+#ifdef VIRT_IOAPIC
 static void virt_ioapic_init(VirtMachineState *vms)
 {
     qemu_irq *ioapic_irq;
@@ -165,6 +166,7 @@ static void virt_ioapic_init(VirtMachineState *vms)
 
     vms->gsi = qemu_allocate_irqs(virt_gsi_handler, ioapic_irq, IOAPIC_NUM_PINS);
 }
+#endif
 
 static void virt_pci_init(VirtMachineState *vms)
 {
@@ -199,7 +201,9 @@ static void virt_machine_state_init(MachineState *machine)
     /* TODO Add the ram pointer to the QOM */
     virt_memory_init(vms);
     virt_pci_init(vms);
+#ifdef VIRT_IOAPIC
     virt_ioapic_init(vms);
+#endif
     vms->acpi = virt_acpi_init(vms->gsi, vms->pci_bus);
 
     vms->apic_id_limit = cpus_init(machine, false);

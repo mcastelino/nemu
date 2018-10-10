@@ -26,6 +26,7 @@
 
 #include "hw/i386/virt.h"
 #include "hw/i386/pc.h"
+#include "hw/i386/apic.h"
 
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/cpu.h"
@@ -122,6 +123,9 @@ static void virt_ospm_status(AcpiDeviceIf *adev, ACPIOSTInfoList ***list)
 
 static void virt_send_ged(AcpiDeviceIf *adev, AcpiEventStatusBits ev)
 {
+    printf("virt_send_ged\n");
+
+#ifdef VIRT_IOAPIC
     VirtAcpiState *s = VIRT_ACPI(adev);
 
     if (ev & ACPI_CPU_HOTPLUG_STATUS) {
@@ -136,6 +140,28 @@ static void virt_send_ged(AcpiDeviceIf *adev, AcpiEventStatusBits ev)
         /* Inject PCI hotplug interrupt */
         qemu_irq_pulse(s->gsi[VIRT_GED_PCI_HOTPLUG_IRQ]);
     }
+#else
+    /*
+     * apic_deliver_irq(uint8_t dest, uint8_t dest_mode, uint8_t delivery_mode,
+     *                   uint8_t vector_num, uint8_t trigger_mode)
+     */
+    if (ev & ACPI_CPU_HOTPLUG_STATUS) {
+        /* We inject the CPU hotplug interrupt */
+        printf("apic_deliver_irq(0,0,0,VIRT_GED_CPU_HOTPLUG_IRQ,1);\n");
+        apic_deliver_irq(0,0,0,VIRT_GED_CPU_HOTPLUG_IRQ,1);
+    } else if (ev & ACPI_MEMORY_HOTPLUG_STATUS) {
+        /* We inject the memory hotplug interrupt */
+        printf("apic_deliver_irq(0,0,0,VIRT_GED_MEMORY_HOTPLUG_IRQ,1);\n");
+        apic_deliver_irq(0,0,0,VIRT_GED_MEMORY_HOTPLUG_IRQ,1);
+    } else if (ev & ACPI_NVDIMM_HOTPLUG_STATUS) {
+        printf(" apic_deliver_irq(0,0,0,VIRT_GED_NVDIMM_HOTPLUG_IRQ,1);\n");
+        apic_deliver_irq(0,0,0,VIRT_GED_NVDIMM_HOTPLUG_IRQ,1);
+    } else if (ev & ACPI_PCI_HOTPLUG_STATUS) {
+        printf(" apic_deliver_irq(0,0,0,VIRT_GED_PCI_HOTPLUG_IRQ,1);\n");
+        /* Inject PCI hotplug interrupt */
+        apic_deliver_irq(0,0,0,VIRT_GED_PCI_HOTPLUG_IRQ,1);
+    }
+#endif
 }
 
 static int virt_device_sysbus_init(SysBusDevice *dev)
