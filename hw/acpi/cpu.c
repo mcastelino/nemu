@@ -420,18 +420,20 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
             Aml *sta = aml_local(0);
 
             aml_append(method, aml_acquire(ctrl_lock, 0xFFFF));
-            aml_append(method, aml_store(idx, cpu_selector));
-            aml_append(method, aml_store(zero, sta));
-            ifctx = aml_if(aml_equal(is_enabled, one));
-            {
-                aml_append(ifctx, aml_store(aml_int(0xF), sta));
-            }
-            aml_append(method, ifctx);
+            //aml_append(method, aml_store(idx, cpu_selector));
+            //aml_append(method, aml_store(zero, sta));
+            //ifctx = aml_if(aml_equal(is_enabled, one));
+            //{
+            //    aml_append(ifctx, aml_store(aml_int(0xF), sta));
+            //}
+            //aml_append(method, ifctx);
+            aml_append(method, aml_store(aml_int(0xF), sta));
             aml_append(method, aml_release(ctrl_lock));
             aml_append(method, aml_return(sta));
         }
         aml_append(cpus_dev, method);
 
+#if 0
         method = aml_method(CPU_EJECT_METHOD, 1, AML_SERIALIZED);
         {
             Aml *idx = aml_arg(0);
@@ -442,6 +444,7 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
             aml_append(method, aml_release(ctrl_lock));
         }
         aml_append(cpus_dev, method);
+#endif
 
         method = aml_method(CPU_SCAN_METHOD, 0, AML_SERIALIZED);
         {
@@ -541,9 +544,11 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
                 aml_buffer(madt_buf->len, (uint8_t *)madt_buf->data)));
             g_array_free(madt_buf, true);
 
+#if 0
             method = aml_method("_EJ0", 1, AML_NOTSERIALIZED);
             aml_append(method, aml_call1(CPU_EJECT_METHOD, uid));
             aml_append(dev, method);
+#endif
 
             method = aml_method("_OST", 3, AML_SERIALIZED);
             aml_append(method,
