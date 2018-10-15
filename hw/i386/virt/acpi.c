@@ -249,11 +249,19 @@ static void madt_cpu_entry(AcpiDeviceIf *adev, int uid,
         apic->length = sizeof(*apic);
         apic->processor_id = uid;
         apic->local_apic_id = apic_id;
+#ifdef VIRT_HOTPLUG
         if (apic_ids->cpus[uid].cpu != NULL) {
             apic->flags = cpu_to_le32(1);
         } else {
             apic->flags = cpu_to_le32(0);
         }
+#else
+        if (apic_id < smp_cpus) { 
+            apic->flags = cpu_to_le32(1);
+        } else {
+            apic->flags = cpu_to_le32(0);
+        }
+#endif
     } else {
         AcpiMadtProcessorX2Apic *apic = acpi_data_push(entry, sizeof *apic);
 
@@ -261,11 +269,20 @@ static void madt_cpu_entry(AcpiDeviceIf *adev, int uid,
         apic->length = sizeof(*apic);
         apic->uid = cpu_to_le32(uid);
         apic->x2apic_id = cpu_to_le32(apic_id);
+#ifdef VIRT_HOTPLUG
         if (apic_ids->cpus[uid].cpu != NULL) {
             apic->flags = cpu_to_le32(1);
         } else {
             apic->flags = cpu_to_le32(0);
         }
+#else
+        if (apic_id < smp_cpus) { 
+            apic->flags = cpu_to_le32(1);
+        } else {
+            apic->flags = cpu_to_le32(0);
+        }
+#endif
+
     }
 }
 
