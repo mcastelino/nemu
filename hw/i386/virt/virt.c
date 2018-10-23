@@ -173,7 +173,7 @@ static void virt_pci_init(VirtMachineState *vms)
 {
     MemoryRegion **pci_memory;
     uint16_t i;
-    char name[9];
+    char name[16];
 
     pci_memory = g_new(MemoryRegion*, vms->segment_nr);
     vms->pci_bus = g_new(PCIBus*, vms->segment_nr);

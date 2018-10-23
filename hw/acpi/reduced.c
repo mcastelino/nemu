@@ -46,6 +46,7 @@
 #include "sysemu/numa.h"
 
 #include "migration/vmstate.h"
+#include "hw/i386/virt.h" //FIXME
 
 static void acpi_dsdt_add_memory_hotplug(MachineState *ms, Aml *dsdt)
 {
@@ -144,8 +145,6 @@ static void acpi_reduced_build(MachineState *ms, AcpiBuildTables *tables, AcpiCo
     MachineClass *mc = MACHINE_GET_CLASS(ms);
     GArray *table_offsets;
     unsigned dsdt, xsdt;
-    Object *pci_host;
-    PCIBus *bus = NULL;
     Range pci_hole, pci_hole64;
     AcpiMcfgInfo *mcfg;
     GArray *tables_blob = tables->table_data;
@@ -155,7 +154,7 @@ static void acpi_reduced_build(MachineState *ms, AcpiBuildTables *tables, AcpiCo
     pci_host = g_new(AcpiPciBus , conf->segment_nr);
 
     for (i = 0; i < conf->segment_nr; i++) {
-        pci_host[i].pci_bus = VIRT_MACHINE(ms)->pci_bus[i];
+        pci_host[i].pci_bus = VIRT_MACHINE(ms)->pci_bus[i]; //FIXME. We do not want to specify a specifc machine here
         pci_host[i].pci_hole = &pci_hole;
         pci_host[i].pci_hole64 = &pci_hole64;
         pci_host[i].pci_segment = i;
